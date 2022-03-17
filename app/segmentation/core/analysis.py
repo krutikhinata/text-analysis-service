@@ -2,10 +2,6 @@ from abc import ABC
 from re import MULTILINE, compile
 from typing import List
 
-import nltk
-from nltk import sent_tokenize
-from spacy.lang.en import English
-
 from app.segmentation.schemas import Sentence
 
 
@@ -39,21 +35,15 @@ class RegexSegmenter(Segmenter):
 
 class NLTKSegmenter(Segmenter):
     def segment(self, text: str) -> List[Sentence]:
-        nltk.download('punkt')
-        raw_sentences = sent_tokenize(text)
+        # Code here
+        raw_sentences = []
 
         return self._assemble_sentences(raw_sentences=raw_sentences)
 
 
 class SpacySegmenter(Segmenter):
-    nlp = English()
-    sbd = nlp.add_pipe('sentencizer')
-    nlp.add_pipe(sbd)
-
     def segment(self, text: str) -> List[Sentence]:
-        doc = self.nlp(text)
+        # Code here
         raw_sentences = []
-        for sent in doc.sents:
-            raw_sentences.append(sent.text)
 
         return self._assemble_sentences(raw_sentences=raw_sentences)
