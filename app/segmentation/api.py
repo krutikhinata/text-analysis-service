@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile
 from fastapi.params import File
 
 from app.parsing.pdf import Parser
-from app.segmentation.core.analysis import RegexSegmenter
+from app.segmentation.core.analysis import RegexSegmenter, NLTKSegmenter, SpacySegmenter
 from app.segmentation.schemas import TextSegmentation, TextSegmentationStats
 
 router = APIRouter()
