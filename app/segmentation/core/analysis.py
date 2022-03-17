@@ -7,6 +7,7 @@ from spacy import load
 
 from app.segmentation.schemas import Sentence
 
+
 class Segmenter(ABC):
     @staticmethod
     def _assemble_sentences(raw_sentences: List[str]) -> List[Sentence]:
