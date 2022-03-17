@@ -2,8 +2,10 @@ from abc import ABC
 from re import MULTILINE, compile
 from typing import List
 
-from app.segmentation.schemas import Sentence
+from nltk import sent_tokenize, download
+from spacy import load
 
+from app.segmentation.schemas import Sentence
 
 class Segmenter(ABC):
     @staticmethod
