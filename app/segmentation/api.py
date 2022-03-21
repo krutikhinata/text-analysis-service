@@ -2,7 +2,8 @@ from fastapi import APIRouter, UploadFile
 from fastapi.params import File
 
 from app.parsing.pdf import Parser
-from app.segmentation.core.analysis import RegexSegmenter, NLTKSegmenter, SpacySegmenter
+from app.segmentation.core.analysis import (NLTKSegmenter, RegexSegmenter,
+                                            SpacySegmenter)
 from app.segmentation.schemas import TextSegmentation, TextSegmentationStats
 
 router = APIRouter()
@@ -43,7 +44,7 @@ async def segment_pdf_with_nltk(
     segmenter = NLTKSegmenter()
 
     pdf_text = await parser.parse(file=file)
-    segmentation = segmenter.segment(pdf_text.content)  # change here
+    segmentation = segmenter.segment(pdf_text.content)
 
     stats = TextSegmentationStats(
         symbols=len(pdf_text.content),
@@ -69,7 +70,7 @@ async def segment_pdf_with_spacy(
     segmenter = SpacySegmenter()
 
     pdf_text = await parser.parse(file=file)
-    segmentation = segmenter.segment(pdf_text.content)  # change here
+    segmentation = segmenter.segment(pdf_text.content)
 
     stats = TextSegmentationStats(
         symbols=len(pdf_text.content),

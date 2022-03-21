@@ -8,7 +8,7 @@ from app.parsing.schemas import ParsedText
 
 
 class Parser:
-    valid_size_mb = 10
+    valid_size_mb = 30
 
     async def parse(self, file: UploadFile) -> ParsedText:
         extension = file.filename.split(".")[-1].lower()
@@ -17,7 +17,7 @@ class Parser:
         if not file_size <= self.valid_size_mb:
             raise HTTPException(
                 status_code=http_status.HTTP_406_NOT_ACCEPTABLE,
-                detail="Image size is too large."
+                detail="PDF file size is too large."
             )
 
         file.file.seek(0, 0)
