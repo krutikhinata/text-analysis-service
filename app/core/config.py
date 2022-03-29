@@ -21,3 +21,7 @@ PROJECT_NAME = config("PROJECT_NAME", cast=str)
 BACKEND_CORS_ORIGINS = list(
     config("BACKEND_CORS_ORIGINS", cast=CommaSeparatedStrings)
 )
+
+# Celery
+CELERY_BACKEND_DB = config("CELERY_BACKEND_DB", cast=str)
+CELERY_BROKER = config("CELERY_BROKER", cast=str)
