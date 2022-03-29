@@ -1,6 +1,6 @@
 from app.celery_app.app import celery_app
 from app.segmentation.core.analysis import RegexSegmenter
-from app.segmentation.schemas import TextSegmentationStats, TextSegmentation
+from app.segmentation.schemas import TextSegmentation, TextSegmentationStats
 
 
 @celery_app.task(name="segment_pdf_with_regex", acks_late=True)
