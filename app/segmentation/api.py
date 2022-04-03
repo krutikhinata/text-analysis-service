@@ -51,6 +51,7 @@ async def segment_pdf_with_regex_as_task(
         background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
 ) -> TaskCreated:
+
     parser = Parser()
     pdf_text = await parser.parse(file=file)
 
@@ -89,6 +90,24 @@ async def segment_pdf_with_nltk(
     )
 
 
+@router.post("/pdf/nltk/task", response_model=TaskCreated)
+async def segment_pdf_with_nltk_as_task(
+        background_tasks: BackgroundTasks,
+        file: UploadFile = File(...),
+) -> TaskCreated:
+
+    parser = Parser()
+    pdf_text = await parser.parse(file=file)
+
+    task = celery_app.send_task(
+        "segment_pdf_with_nltk",
+        args=(pdf_text.dict(),)
+    )
+    background_tasks.add_task(background_on_message, task)
+
+    return TaskCreated(task_id=task.id)
+
+
 @router.post("/pdf/spacy", response_model=TextSegmentation)
 async def segment_pdf_with_spacy(
         file: UploadFile = File(...),
@@ -113,3 +132,21 @@ async def segment_pdf_with_spacy(
         stats=stats,
         sentences=segmentation
     )
+
+
+@router.post("/pdf/spacy/task", response_model=TaskCreated)
+async def segment_pdf_with_spacy_as_task(
+        background_tasks: BackgroundTasks,
+        file: UploadFile = File(...),
+) -> TaskCreated:
+
+    parser = Parser()
+    pdf_text = await parser.parse(file=file)
+
+    task = celery_app.send_task(
+        "segment_pdf_with_nltk",
+        args=(pdf_text.dict(),)
+    )
+    background_tasks.add_task(background_on_message, task)
+
+    return TaskCreated(task_id=task.id)
