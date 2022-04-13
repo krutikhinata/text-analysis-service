@@ -1,5 +1,6 @@
 from abc import ABC
 from typing import Optional
+import re
 
 
 class Searcher(ABC):
@@ -9,9 +10,14 @@ class Searcher(ABC):
 
 class NumberSearcher(Searcher):
     def identify(self, string: str, **kwargs):
-        pattern_variable = kwargs.get("pattern_variable")
+        for _ in kwargs:
+            pattern_variable = kwargs.get("pattern_variable")
+            pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?|\.\d+)(?:[eE][-+]?\d+)?(?={pattern_variable})'
+            match = re.search(pattern=pattern,
+                              string=string,
+                              flags=re.IGNORECASE
+                              )
+            if match:
+                matched_value = float(match.group().replace(",", ""))
 
-        # pattern for ,
-        # 1,000 -> 1000
-
-        return
+            return matched_value
