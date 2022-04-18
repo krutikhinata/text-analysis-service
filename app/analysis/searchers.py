@@ -16,13 +16,15 @@ class NumberSearcher(Searcher):
         matched_values = re.findall(pattern, string, re.IGNORECASE)
         if matched_values:
             for matched_value in matched_values:
+                if ',' in matched_value:
+                    matched_value = matched_value.replace(',', '.')
                 matched_value = float(matched_value)
             return matched_value
 
     def _millions(self, string: str, pattern_variable: str):
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?)(?={pattern_variable})'
         # if more than 1 comma or dot then remove
-        # if 1 comma change to dot
+        # if 1 comma replace with dot
         matched_values = re.findall(pattern, string, re.IGNORECASE)
         if matched_values:
             for matched_value in matched_values:
@@ -31,11 +33,10 @@ class NumberSearcher(Searcher):
                     occurrences = matched_value.count('.')
                     if occurrences > 1:
                         matched_value = matched_value.replace('.', '')
-                matched_value = float(matched_value)
-            return matched_value
+            return float(matched_value)
 
     def _multiplication(self, string: str, pattern_variable: str):
-        # multiply by number after 10
+        # multiply by 10
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?|\.\d+)[*×]\d*\^?\d+' \
                   rf'(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -49,18 +50,21 @@ class NumberSearcher(Searcher):
                         factor2, degree = int(factor_with_degree[0]), \
                         int(factor_with_degree[1])
                     else:
-                        # there is trouble
+                        # there is a trouble
                         degree = re.search(r'?<=(10\d+)', factor_with_degree)
                         factor2 = re.search(rf'?={degree}')
                     matched_value = factor1 * (factor2**degree)
 
             return matched_value
 
+    # logarithm
+    # range
+
 
     # def identify(self, string: str, **kwargs) -> str:
     #     pattern_variable = kwargs.get("pattern_variable")
     #     pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?|\.\d+)' \
-    #               rf'(?:[eE][-+]?\d+)?(?={pattern_variable})'
+    #               rf'(?:[eE][-+]?\d+)?(?={pattern_variab-le})'
     #     match = re.search(
     #         pattern=pattern,
     #         string=string,
