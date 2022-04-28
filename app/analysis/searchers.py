@@ -1,6 +1,6 @@
+import re
 from abc import ABC
 from typing import List, Tuple
-import re
 
 
 class Searcher(ABC):
@@ -90,6 +90,7 @@ class NumberSearcher(Searcher):
         return string, buffer
 
     def identify(self, string: str, metric: str) -> Tuple[str, List[float]]:
+        string = string.replace(', ', '[, ]')
         string = ''.join(string.split())
         string, exponential = self._exponential(
             string,
@@ -102,4 +103,3 @@ class NumberSearcher(Searcher):
         string, general = self._general(string, pattern_variable=metric)
         values = exponential + general + scientific
         return string, values
-
