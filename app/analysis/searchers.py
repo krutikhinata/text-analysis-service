@@ -9,10 +9,33 @@ class Searcher(ABC):
 
 
 class NumberSearcher(Searcher):
+    # 3-5
+    # ±100 -> [-100.0, 100.0]
+    # 584.38 ± 13.29 μm
     @staticmethod
-    def _ranges() -> Tuple[str, List[float]]:
-        # ±100 -> [-100.0, 100.0]
-        ...
+    def _ranges(
+            string: str,
+            pattern_variable: str
+    ) -> Tuple[str, List[float]]:
+        pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?)-' \
+                  rf'(?:\d+(?:[\.\,\d]*)?)\s?(?={pattern_variable})'
+        matched_values = re.findall(pattern, string, re.IGNORECASE)
+        buffer = []
+
+        for matched_value in matched_values:
+            string = string.replace(
+                f'{matched_value}{pattern_variable}',
+                ' [cropped] '
+            )
+            matched_value = matched_value.replace(',', '.')
+            occurrences = matched_value.count('.')
+            if occurrences > 2:
+                matched_value = matched_value.replace('.', '')
+            values = matched_value.split('-')
+            range_boundary1, range_boundary2 = values[0], values[1]
+            buffer.extend(float(range_boundary1), float(range_boundary2))
+
+        return string, buffer
 
     @staticmethod
     def _exponential(
