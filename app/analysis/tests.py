@@ -18,7 +18,8 @@ def test_length_index():
     string = "The diameter of the pipe is 1.5km."
 
     for metric in mapping.keys():
-        pattern = rf'\d+(\.\d+?)?\s?(?={metric})'
+        pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?|\.\d+)' \
+                  rf'(?:[eE][-+]?\d+)?(?={metric})'
         match = re.search(
             pattern=pattern,
             string=string,

@@ -14,7 +14,7 @@ class Parser:
         extension = file.filename.split(".")[-1].lower()
         file_size = sum([len(chunk) for chunk in file.file]) / 1024 / 1024
 
-        if not file_size <= self.valid_size_mb:
+        if file_size > self.valid_size_mb:
             raise HTTPException(
                 status_code=http_status.HTTP_406_NOT_ACCEPTABLE,
                 detail="PDF file size is too large."
