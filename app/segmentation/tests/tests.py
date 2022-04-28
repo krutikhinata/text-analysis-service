@@ -2,6 +2,7 @@ from json import dumps
 
 import pdftotext
 
+from app.analysis.converters import Converter
 from app.analysis.searchers import NumberSearcher
 from app.segmentation.core.analysis import NLTKSegmenter
 
@@ -16,8 +17,28 @@ def test():
 
     searcher = NumberSearcher()
 
+    # Input
+    # |  Name  |  mapping  |
+    # | length |   jsonb   |
+
+    # Output
+    # | doc_ref | sentence | tsv_vector |      found     |
+    # |    FK   |  varchar |  gin index | array[decimal] |
+
+    mapping = {
+        "µm": 1e+6,
+        "nm": 1e+9,
+        "mm": 1000,
+        "cm": 100,
+        "dm": 10,
+        "m": 1,
+        "km": .001
+    }
+
+    converter = Converter(mapping=mapping)
+
     results = []
-    for metric in ["°C"]:
+    for metric in ["nm"]:
         for sentence_item in test_segmentation:
             sentence, floats = searcher.identify(
                 string=sentence_item.content,
@@ -28,10 +49,13 @@ def test():
                 sentence_repr = " ".join(sentence_item.content.split())
 
                 found = ", ".join([str(i) for i in floats])
+                converted = [converter.to_std(i, metric) for i in floats]
+
                 results.append(
                     {
                         "sentence": sentence_repr,
-                        "found": found
+                        "found": found,
+                        "converted": converted
                     }
                 )
 

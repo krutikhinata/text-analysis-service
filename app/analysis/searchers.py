@@ -10,6 +10,11 @@ class Searcher(ABC):
 
 class NumberSearcher(Searcher):
     @staticmethod
+    def _ranges() -> Tuple[str, List[float]]:
+        # ±100 -> [-100.0, 100.0]
+        ...
+
+    @staticmethod
     def _exponential(
             string: str,
             pattern_variable: str
