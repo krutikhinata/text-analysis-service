@@ -68,3 +68,5 @@ wcwidth==0.2.5
 wrapt==1.14.0
 
 openpyxl~=3.0.9
+SQLAlchemy~=1.4.35
+sqlmodel~=0.0.6

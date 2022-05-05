@@ -9,10 +9,76 @@ class Searcher(ABC):
 
 
 class NumberSearcher(Searcher):
+
     @staticmethod
-    def _ranges() -> Tuple[str, List[float]]:
-        # ±100 -> [-100.0, 100.0]
-        ...
+    def _ranges(
+            string: str,
+            pattern_variable: str
+    ) -> Tuple[str, List[float]]:
+        pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?)-' \
+                  rf'(?:\d+(?:[\.\,\d]*)?)\s?(?={pattern_variable})'
+        matched_values = re.findall(pattern, string, re.IGNORECASE)
+        buffer = []
+
+        for matched_value in matched_values:
+            string = string.replace(
+                f'{matched_value}{pattern_variable}',
+                ' [cropped] '
+            )
+            matched_value = matched_value.replace(',', '.')
+            occurrences = matched_value.count('.')
+            if occurrences > 2:
+                matched_value = matched_value.replace('.', '')
+            values = matched_value.split('-')
+            range_boundary1, range_boundary2 = values[0], values[1]
+            buffer.extend((float(range_boundary1), float(range_boundary2)))
+
+        return string, buffer
+
+    # 1) (100 ± 10) -> range(90 - 110)?
+    # [-+]?(?:\d+(?:[\.\, \d] *)?)±(?:\d+(?:[\.\, \d] *)?)(?=m)
+
+    # 2) ±100 -> [-100.0, 100.0]
+    # ±(?:\d+(?:[\.\, \d] *)?)(?=m)
+    # this one captures the second part of 1)
+
+    @staticmethod
+    def _error_range(
+            string: str,
+            pattern_variable: str
+    ) -> Tuple[str, List[float]]:
+        pattern = rf'[-+]?(?:\d+(?:[\.\, \d] *)?)±(?:\d+(?:[\.\, \d] *)?)' \
+                  rf'(?={pattern_variable})'
+        matched_values = re.findall(pattern, string, re.IGNORECASE)
+        buffer = []
+
+        for matched_value in matched_values:
+            values = matched_value.split('±')
+            median, diff = float(values[0]), float(values[1])
+            first = median - diff
+            second = median + diff
+            buffer.extend((first, second))
+
+        return string, buffer
+
+    @staticmethod
+    def _positive_negative(
+            string: str,
+            pattern_variable: str
+    ) -> Tuple[str, List[float]]:
+        pattern = rf'±(?:\d+(?:[\.\, \d] *)?)(?={pattern_variable})'
+        matched_values = re.findall(pattern, string, re.IGNORECASE)
+        buffer = []
+
+        for matched_value in matched_values:
+            string = string.replace(
+                f'{matched_value}{pattern_variable}',
+                ' [cropped] '
+            )
+            buffer.append(float(matched_value.replace('±', '')))
+            buffer.append(float((matched_value.replace('±', '')) * (-1)))
+
+        return string, buffer
 
     @staticmethod
     def _exponential(
@@ -106,5 +172,15 @@ class NumberSearcher(Searcher):
             pattern_variable=metric
         )
         string, general = self._general(string, pattern_variable=metric)
-        values = exponential + general + scientific
+        string, ranges = self._ranges(string, pattern_variable=metric)
+        string, error_range = self._error_range(
+            string,
+            pattern_variable=metric
+        )
+        string, pos_neg = self._positive_negative(
+            string,
+            pattern_variable=metric
+        )
+        values = exponential + general + scientific + error_range + pos_neg \
+                 + ranges
         return string, values
