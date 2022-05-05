@@ -1,11 +1,11 @@
 from celery import Celery
 
-from app.core.config import CELERY_BACKEND_DB, CELERY_BROKER
+from app import settings
 
 celery_app = Celery(
     "main_queue",
-    backend=CELERY_BACKEND_DB,
-    broker=CELERY_BROKER
+    backend=settings.celery_backend_db,
+    broker=settings.celery_broker
 )
 
 celery_app.autodiscover_tasks(
