@@ -181,6 +181,5 @@ class NumberSearcher(Searcher):
             string,
             pattern_variable=metric
         )
-        values = exponential + general + scientific + error_range + pos_neg \
-                 + ranges
+        values = exponential + general + scientific + error_range + pos_neg + ranges
         return string, values
