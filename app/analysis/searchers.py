@@ -1,6 +1,42 @@
 import re
 from abc import ABC
-from typing import List, Tuple
+from dataclasses import dataclass
+from decimal import Decimal
+from typing import List
+
+
+@dataclass
+class Metric:
+    unit: str
+    value: Decimal
+
+    def __hash__(self):
+        return hash(f'{self.unit}{self.value}')
+
+    def __eq__(self, other):
+        return self.unit == other.unit and self.value == other.value
+
+
+@dataclass
+class MetricRange:
+    from_: Metric
+    to: Metric
+
+    def __hash__(self):
+        return hash(f'{self.from_.unit}{self.to.unit}/'
+                    f'{self.from_.value}{self.to.value}')
+
+    def __eq__(self, other):
+        return self.from_.unit == other.from_.unit and \
+               self.to.unit == other.to.unit and \
+               self.from_.value == other.from_.value and \
+               self.to.value == other.to.value
+
+
+@dataclass
+class MetricRecognised:
+    metrics: List[Metric]
+    metric_ranges: List[MetricRange]
 
 
 class Searcher(ABC):
@@ -11,10 +47,37 @@ class Searcher(ABC):
 class NumberSearcher(Searcher):
 
     @staticmethod
+    def _general(
+            string: str,
+            pattern_variable: str
+    ) -> List:
+
+        pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?)(?={pattern_variable})'
+        matched_values = re.findall(pattern, string, re.IGNORECASE)
+        buffer = []
+
+        for matched_value in matched_values:
+            string = string.replace(
+                f'{matched_value}{pattern_variable}',
+                ' [cropped] '
+            )
+            matched_value = matched_value.replace(',', '.')
+            occurrences = matched_value.count('.')
+            if occurrences > 1:
+                matched_value = matched_value.replace('.', '')
+            metric = Metric(
+                unit=pattern_variable,
+                value=Decimal(matched_value)
+            )
+            buffer.append(metric)
+
+        return buffer
+
+    @staticmethod
     def _ranges(
             string: str,
             pattern_variable: str
-    ) -> Tuple[str, List[float]]:
+    ) -> List:
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?)-' \
                   rf'(?:\d+(?:[\.\,\d]*)?)\s?(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -31,9 +94,13 @@ class NumberSearcher(Searcher):
                 matched_value = matched_value.replace('.', '')
             values = matched_value.split('-')
             range_boundary1, range_boundary2 = values[0], values[1]
-            buffer.extend((float(range_boundary1), float(range_boundary2)))
+            MetricRange(
+                from_=Metric(pattern_variable, Decimal(range_boundary1)),
+                to=Metric(pattern_variable, Decimal(range_boundary2))
+            )
+            buffer.append(MetricRange)
 
-        return string, buffer
+        return buffer
 
     # 1) (100 ± 10) -> range(90 - 110)?
     # [-+]?(?:\d+(?:[\.\, \d] *)?)±(?:\d+(?:[\.\, \d] *)?)(?=m)
@@ -46,7 +113,7 @@ class NumberSearcher(Searcher):
     def _error_range(
             string: str,
             pattern_variable: str
-    ) -> Tuple[str, List[float]]:
+    ) -> List[MetricRange]:
         pattern = rf'[-+]?(?:\d+(?:[\.\, \d] *)?)±(?:\d+(?:[\.\, \d] *)?)' \
                   rf'(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -54,18 +121,22 @@ class NumberSearcher(Searcher):
 
         for matched_value in matched_values:
             values = matched_value.split('±')
-            median, diff = float(values[0]), float(values[1])
-            first = median - diff
-            second = median + diff
-            buffer.extend((first, second))
+            median, diff = Decimal(values[0]), Decimal(values[1])
+            from_ = median - diff
+            to = median + diff
+            MetricRange(
+                from_=Metric(pattern_variable, Decimal(from_)),
+                to=Metric(pattern_variable, Decimal(to))
+            )
+            buffer.append(MetricRange)
 
-        return string, buffer
+        return buffer
 
     @staticmethod
     def _positive_negative(
             string: str,
             pattern_variable: str
-    ) -> Tuple[str, List[float]]:
+    ) -> List[Metric]:
         pattern = rf'±(?:\d+(?:[\.\, \d] *)?)(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
         buffer = []
@@ -75,16 +146,25 @@ class NumberSearcher(Searcher):
                 f'{matched_value}{pattern_variable}',
                 ' [cropped] '
             )
-            buffer.append(float(matched_value.replace('±', '')))
-            buffer.append(float((matched_value.replace('±', '')) * (-1)))
+            value = Decimal(matched_value.replace('±', ''))
+            metric = Metric(
+                unit=pattern_variable,
+                value=value
+            )
+            buffer.append(metric)
+            metric = Metric(
+                unit=pattern_variable,
+                value=-value
+            )
+            buffer.append(metric)
 
-        return string, buffer
+        return buffer
 
     @staticmethod
     def _exponential(
             string: str,
             pattern_variable: str
-    ) -> Tuple[str, List[float]]:
+    ) -> List[Metric]:
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?|\.\d+)[eE]' \
                   rf'(?:[-+]?\d+)?(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -95,15 +175,19 @@ class NumberSearcher(Searcher):
                 f'{matched_value}{pattern_variable}',
                 ' [cropped] '
             )
-            buffer.append(float(matched_value.replace(',', '.')))
+            metric = Metric(
+                unit=pattern_variable,
+                value=Decimal(matched_value.replace(',', '.'))
+            )
+            buffer.append(metric)
 
-        return string, buffer
+        return buffer
 
     @staticmethod
     def _scientific_notation(
             string: str,
             pattern_variable: str
-    ) -> Tuple[str, List[float]]:
+    ) -> List[Metric]:
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?|\.\d+)[*×]\d*\^?\d+' \
                   rf'(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -123,7 +207,7 @@ class NumberSearcher(Searcher):
                     )
                 else:
                     if factor_with_degree.startswith('10'):
-                        degree = float(factor_with_degree[2:])
+                        degree = Decimal(factor_with_degree[2:])
                         factor2 = 10
                     else:
                         continue
@@ -133,34 +217,15 @@ class NumberSearcher(Searcher):
                     ' [cropped] '
                 )
                 matched_value = factor1 * (factor2 ** degree)
-                buffer.append(matched_value)
+                metric = Metric(
+                    unit=pattern_variable,
+                    value=Decimal(matched_value)
+                )
+                buffer.append(metric)
 
-        return string, buffer
+        return buffer
 
-    @staticmethod
-    def _general(
-            string: str,
-            pattern_variable: str
-    ) -> Tuple[str, List[float]]:
-
-        pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?)(?={pattern_variable})'
-        matched_values = re.findall(pattern, string, re.IGNORECASE)
-        buffer = []
-
-        for matched_value in matched_values:
-            string = string.replace(
-                f'{matched_value}{pattern_variable}',
-                ' [cropped] '
-            )
-            matched_value = matched_value.replace(',', '.')
-            occurrences = matched_value.count('.')
-            if occurrences > 1:
-                matched_value = matched_value.replace('.', '')
-            buffer.append(float(matched_value))
-
-        return string, buffer
-
-    def identify(self, string: str, metric: str) -> Tuple[str, List[float]]:
+    def identify(self, string: str, metric: str) -> List[Metric, MetricRange]:
         string = string.replace(', ', '[, ]')
         string = ''.join(string.split())
         string, exponential = self._exponential(
@@ -181,5 +246,7 @@ class NumberSearcher(Searcher):
             string,
             pattern_variable=metric
         )
-        values = exponential + general + scientific + error_range + pos_neg + ranges
-        return string, values
+        metrics = exponential + general + scientific + pos_neg
+        metric_ranges = error_range + ranges
+        results = []
+        return results[metrics + metric_ranges]

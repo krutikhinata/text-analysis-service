@@ -35,6 +35,7 @@ target_metadata.naming_convention = {
 # target_metadata = mymodel.Base.metadata
 # target_metadata = None
 
+from app.documents.models import Document  # noqa
 from app.ontologies.models import Metric  # noqa
 
 # other values from the config, defined by the needs of env.py,
