@@ -2,7 +2,7 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import List
+from typing import List, Tuple
 
 
 @dataclass
@@ -51,7 +51,7 @@ class NumberSearcher(Searcher):
     def _general(
             string: str,
             pattern_variable: str
-    ) -> List:
+    ) -> Tuple[str, List[Metric]]:
 
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?)(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -72,13 +72,13 @@ class NumberSearcher(Searcher):
             )
             buffer.append(metric)
 
-        return buffer
+        return string, buffer
 
     @staticmethod
     def _ranges(
             string: str,
             pattern_variable: str
-    ) -> List:
+    ) -> Tuple[str, List[MetricRange]]:
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?)-' \
                   rf'(?:\d+(?:[\.\,\d]*)?)\s?(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -95,19 +95,19 @@ class NumberSearcher(Searcher):
                 matched_value = matched_value.replace('.', '')
             values = matched_value.split('-')
             range_boundary1, range_boundary2 = values[0], values[1]
-            MetricRange(
+            metric_range = MetricRange(
                 from_=Metric(pattern_variable, Decimal(range_boundary1)),
                 to=Metric(pattern_variable, Decimal(range_boundary2))
             )
-            buffer.append(MetricRange)
+            buffer.append(metric_range)
 
-        return buffer
+        return string, buffer
 
     @staticmethod
     def _error_range(
             string: str,
             pattern_variable: str
-    ) -> List[MetricRange]:
+    ) -> Tuple[str, List[MetricRange]]:
         pattern = rf'[-+]?(?:\d+(?:[\.\, \d] *)?)±(?:\d+(?:[\.\, \d] *)?)' \
                   rf'(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -124,13 +124,13 @@ class NumberSearcher(Searcher):
             )
             buffer.append(metric_range)
 
-        return buffer
+        return string, buffer
 
     @staticmethod
     def _positive_negative(
             string: str,
             pattern_variable: str
-    ) -> List[Metric]:
+    ) -> Tuple[str, List[Metric]]:
         pattern = rf'±(?:\d+(?:[\.\, \d] *)?)(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
         buffer = []
@@ -152,13 +152,13 @@ class NumberSearcher(Searcher):
             )
             buffer.append(metric)
 
-        return buffer
+        return string, buffer
 
     @staticmethod
     def _exponential(
             string: str,
             pattern_variable: str
-    ) -> List[Metric]:
+    ) -> Tuple[str, List[Metric]]:
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?|\.\d+)[eE]' \
                   rf'(?:[-+]?\d+)?(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -175,13 +175,13 @@ class NumberSearcher(Searcher):
             )
             buffer.append(metric)
 
-        return buffer
+        return string, buffer
 
     @staticmethod
     def _scientific_notation(
             string: str,
             pattern_variable: str
-    ) -> List[Metric]:
+    ) -> Tuple[str, List[Metric]]:
         pattern = rf'[-+]?(?:\d+(?:[\.\,\d]*)?|\.\d+)[*×]\d*\^?\d+' \
                   rf'(?={pattern_variable})'
         matched_values = re.findall(pattern, string, re.IGNORECASE)
@@ -217,7 +217,7 @@ class NumberSearcher(Searcher):
                 )
                 buffer.append(metric)
 
-        return buffer
+        return string, buffer
 
     def identify(self, string: str, metric: str) -> MetricRecognised:
         string = string.replace(', ', '[, ]')

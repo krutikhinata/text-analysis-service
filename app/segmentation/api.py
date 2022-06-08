@@ -5,7 +5,7 @@ from fastapi.params import File
 from starlette.background import BackgroundTasks
 
 from app.celery_app.app import celery_app
-from app.celery_app.schemas import TaskCreated
+from app.celery_app.models import TaskCreated
 from app.parsing.pdf import Parser
 from app.segmentation.core.analysis import (NLTKSegmenter, RegexSegmenter,
                                             SpacySegmenter)

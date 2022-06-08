@@ -1,11 +1,13 @@
+from hashlib import sha224
+from os import path
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from fastapi import status as http_status
 from sqlalchemy import delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import Document
+from app import Document, settings
 from app.documents.models import DocumentCreate, DocumentPatch
 
 
@@ -13,9 +15,24 @@ class DocumentsCRUD:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create(self, data: DocumentCreate) -> Document:
+        self.storage_folder = path.join(
+            settings.db_storage_folder,
+            "documents"
+        )
+
+    async def create(self, data: DocumentCreate, file: UploadFile) -> Document:
         values = data.dict()
         doc = Document(**values)
+
+        extension = file.filename.split(".")[-1].lower()
+        filename = path.join(self.storage_folder, f"{doc.uuid}.{extension}")
+
+        file_content = await file.read()
+        with open(filename, "wb") as document_file:
+            document_file.write(file_content)
+
+        doc.file_path = filename
+        doc.hash_value = sha224(file_content).hexdigest()
 
         self.session.add(doc)
         await self.session.commit()

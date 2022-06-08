@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     db_sync_connection_str: str
     db_exclude_tables: List[str]
 
+    db_storage_folder: str = "storage"
+
     # Celery
     celery_backend_db: str
     celery_broker: str

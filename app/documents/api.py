@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi import status as http_status
 
 from app.core.models import StatusMessage
@@ -15,12 +15,13 @@ router = APIRouter()
     response_model=Document,
     status_code=http_status.HTTP_201_CREATED
 )
-async def create_doc(
-        data: DocumentCreate,
+async def create_document(
+        data: DocumentCreate = Depends(DocumentCreate.as_form),
+        file: UploadFile = File(...),
         documents: DocumentsCRUD = Depends(get_documents_crud)
 ):
-    doc = await documents.create(data=data)
-    return doc
+    document = await documents.create(data=data, file=file)
+    return document
 
 
 @router.get(
@@ -28,7 +29,7 @@ async def create_doc(
     response_model=DocumentRead,
     status_code=http_status.HTTP_200_OK
 )
-async def get_doc(
+async def get_document(
         doc_id: str,
         documents: DocumentsCRUD = Depends(get_documents_crud)
 ):
@@ -62,7 +63,7 @@ async def patch_document(
     response_model=StatusMessage,
     status_code=http_status.HTTP_200_OK
 )
-async def delete_doc(
+async def delete_document(
         doc_id: str,
         documents: DocumentsCRUD = Depends(get_documents_crud)
 ):
