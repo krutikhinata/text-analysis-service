@@ -1,5 +1,5 @@
 import re
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import List
@@ -40,6 +40,7 @@ class MetricRecognised:
 
 
 class Searcher(ABC):
+    @abstractmethod
     def identify(self, string: str, metric: str):
         ...
 
@@ -102,13 +103,6 @@ class NumberSearcher(Searcher):
 
         return buffer
 
-    # 1) (100 ± 10) -> range(90 - 110)?
-    # [-+]?(?:\d+(?:[\.\, \d] *)?)±(?:\d+(?:[\.\, \d] *)?)(?=m)
-
-    # 2) ±100 -> [-100.0, 100.0]
-    # ±(?:\d+(?:[\.\, \d] *)?)(?=m)
-    # this one captures the second part of 1)
-
     @staticmethod
     def _error_range(
             string: str,
@@ -124,11 +118,11 @@ class NumberSearcher(Searcher):
             median, diff = Decimal(values[0]), Decimal(values[1])
             from_ = median - diff
             to = median + diff
-            MetricRange(
+            metric_range = MetricRange(
                 from_=Metric(pattern_variable, Decimal(from_)),
                 to=Metric(pattern_variable, Decimal(to))
             )
-            buffer.append(MetricRange)
+            buffer.append(metric_range)
 
         return buffer
 
@@ -225,7 +219,7 @@ class NumberSearcher(Searcher):
 
         return buffer
 
-    def identify(self, string: str, metric: str) -> List[Metric, MetricRange]:
+    def identify(self, string: str, metric: str) -> MetricRecognised:
         string = string.replace(', ', '[, ]')
         string = ''.join(string.split())
         string, exponential = self._exponential(
@@ -248,5 +242,5 @@ class NumberSearcher(Searcher):
         )
         metrics = exponential + general + scientific + pos_neg
         metric_ranges = error_range + ranges
-        results = []
-        return results[metrics + metric_ranges]
+
+        return MetricRecognised(metrics=metrics, metric_ranges=metric_ranges)
