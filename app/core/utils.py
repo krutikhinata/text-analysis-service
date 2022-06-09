@@ -46,7 +46,6 @@ def form_body_model(cls: Type[BaseModel]):
             description='Comments that are captured in the log',
         )
 
-
     @route.post('/message/schedule')
     async def schedule_message(data: MessageIn = Depends(MessageIn.as_form)):
         # data is a Pydantic model with parsed form post data

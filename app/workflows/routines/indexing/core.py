@@ -8,8 +8,11 @@ from sqlmodel import Session
 
 from app import Document, DocumentIndex
 from app import Metric as OntologyMetric
+from app.analysis.converters import Converter
 from app.analysis.searchers import MetricRecognised, NumberSearcher
-from app.segmentation.core.analysis import RegexSegmenter
+from app.celery_app.app import update_task_run
+from app.core.db import get_sync_session
+from app.segmentation.core.analysis import SpacySegmenter
 from app.segmentation.schemas import Sentence
 
 
@@ -24,6 +27,7 @@ class TaskStage:
 
 
 class GettingDocument(TaskStage):
+    @update_task_run
     def run(self, *args, **kwargs):
         if not args:
             session = kwargs.get("session")  # type: Session
@@ -43,14 +47,16 @@ class GettingDocument(TaskStage):
 
 
 class Segmentation(TaskStage):
+    @update_task_run
     def run(self, *args, **kwargs):
         if not args:
             document = kwargs.get("document")  # type: Document
         else:
             document = args[0]  # type: Document
 
-        segmenter = RegexSegmenter()
-        pdf_content = pdftotext.PDF(pdf_file=document.file_path)
+        segmenter = SpacySegmenter()
+        with open(document.file_path, "rb") as file:
+            pdf_content = pdftotext.PDF(pdf_file=file)
 
         segmentation = segmenter.segment("\n\n".join(pdf_content))
 
@@ -58,6 +64,7 @@ class Segmentation(TaskStage):
 
 
 class GetProvision(TaskStage):
+    @update_task_run
     def run(self, *args, **kwargs):
         if not args:
             session = kwargs.get("session")  # type: Session
@@ -72,6 +79,7 @@ class GetProvision(TaskStage):
 
 
 class Indexing(TaskStage):
+    @update_task_run
     def run(self, *args, **kwargs):
         if not args:
             segmentation = kwargs.get("segmentation")  # type: List[Sentence]
@@ -94,7 +102,8 @@ class Indexing(TaskStage):
                     metric_indexing.append(
                         {
                             "sentence_number": sentence.number,
-                            "metrics_recognised": metric_recognised
+                            "metrics_recognised": metric_recognised,
+                            "mapping": metric.mapping
                         }
                     )
 
@@ -104,6 +113,7 @@ class Indexing(TaskStage):
 
 
 class Saving(TaskStage):
+    @update_task_run
     def run(self, *args, **kwargs):
         if not args:
             session = kwargs.get("session")  # type: Session
@@ -113,40 +123,80 @@ class Saving(TaskStage):
             session, document, results = args
 
         for key, value in results.items():
-            metrics_recognised = value.get(
-                "metrics_recognised"
-            )  # type: MetricRecognised
+            for metric_indexing in value:
+                metrics_recognised = metric_indexing.get(
+                    "metrics_recognised"
+                )  # type: MetricRecognised
 
-            for metric in metrics_recognised.metrics:
-                document_index = DocumentIndex(
-                    metric_name=key,
-                    sentence_number=value.get("sentence_number"),
-                    value=...,
-                    document_id=document.uuid
-                )
+                converter = Converter(mapping=metric_indexing.get("mapping"))
 
-            for metric_range in metrics_recognised.metric_ranges:
-                document_index = DocumentIndex(
-                    metric_name=key,
-                    sentence_number=value.get("sentence_number"),
-                    value=...,
-                    document_id=document.uuid
-                )
+                for metric in metrics_recognised.metrics:
 
-                document_index = DocumentIndex(
-                    metric_name=key,
-                    sentence_number=value.get("sentence_number"),
-                    value=...,
-                    document_id=document.uuid
-                )
+                    document_index = DocumentIndex(
+                        metric_name=key,
+                        sentence_number=metric_indexing.get("sentence_number"),
+                        value=converter.to_std(
+                            value=metric.value,
+                            metric=metric.unit
+                        ),
+                        document_id=document.uuid
+                    )
+                    session.add(document_index)
+
+                for metric_range in metrics_recognised.metric_ranges:
+                    document_index = DocumentIndex(
+                        metric_name=key,
+                        sentence_number=metric_indexing.get("sentence_number"),
+                        value=converter.to_std(
+                            value=metric_range.to.value,
+                            metric=metric_range.to.unit
+                        ),
+                        document_id=document.uuid
+                    )
+                    session.add(document_index)
+
+                    document_index = DocumentIndex(
+                        metric_name=key,
+                        sentence_number=metric_indexing.get("sentence_number"),
+                        value=converter.to_std(
+                            value=metric_range.from_.value,
+                            metric=metric_range.from_.unit
+                        ),
+                        document_id=document.uuid
+                    )
+                    session.add(document_index)
+
+        session.commit()
 
 
 class TaskRunner:
     def __init__(self):
-        pipeline = [
-            GettingDocument(name="Getting document", percentage=10),
-            Segmentation(name="Segmentation", percentage=30),
-            GetProvision(name="Getting provision", percentage=50),
-            Indexing(name="Indexing", percentage=80),
-            Saving(name="Saving data", percentage=90)
-        ]
+        self.session = get_sync_session()
+
+    def run(self, document_id: str):
+        first_stage = GettingDocument(name="Getting document", percentage=10)
+        document = first_stage.run(
+            session=self.session,
+            document_id=document_id
+        )
+
+        second_stage = Segmentation(name="Segmentation", percentage=30)
+        segmentation = second_stage.run(document=document)
+
+        third_stage = GetProvision(name="Getting provision", percentage=50)
+        metrics = third_stage.run(session=self.session)
+
+        fourth_stage = Indexing(name="Indexing", percentage=80)
+        results = fourth_stage.run(segmentation=segmentation, metrics=metrics)
+
+        fifth_stage = Saving(name="Saving data", percentage=90)
+        fifth_stage.run(
+            session=self.session,
+            document=document,
+            results=results
+        )
+
+        return {
+            "status": True,
+            "message": "The processing has been completed with success!"
+        }
